@@ -5,8 +5,8 @@
 // use sha2::Digest;
 // use std::fs::{self, File};
 
-pub mod wx_pay;
-mod constants;
+mod wx_pay;
+pub use wx_pay::{PayType, WxData, WxNotifyData, WxOrderRes, WxPay, WxPayNotify};
 
 // fn sign(content: &str, privite_key: &str) -> Result<String, anyhow::Error> {
 //     // SHA256withRSA 编码

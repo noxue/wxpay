@@ -1,5 +1,10 @@
+use aes_gcm::{
+    aead::{Aead, Payload},
+    Aes256Gcm, KeyInit,
+};
 use anyhow::bail;
 use chrono::Utc;
+use crypto::common::generic_array::GenericArray;
 use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{
     header::{HeaderMap, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
@@ -15,14 +20,15 @@ use log::{debug, info, warn}; // Use log crate when building application
 #[cfg(test)]
 use std::{println as debug, println as info, println as warn, println as error}; // Workaround to use prinltn! for logs.
 
-struct WxPay<'a> {
-    pub appid: &'a str,
-    pub mchid: &'a str,
-    pub private_key: &'a str,
-    pub serial_no: &'a str,
-    pub apiv3_private_key: &'a str,
-    pub notify_url: &'a str,
-    pub certificates: Option<&'a str>,
+#[derive(Debug, Clone)]
+pub struct WxPay {
+    appid: String,
+    mchid: String,
+    private_key: String,
+    serial_no: String,
+    apiv3_private_key: String,
+    notify_url: String,
+    certificates: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -34,7 +40,7 @@ pub struct WxData {
     pub time_stamp: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Amount {
     pub total: u32,
 }
@@ -43,12 +49,12 @@ pub struct Payer {
     pub openid: String,
 }
 
-#[derive(Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum PayType {
     App,
     Mini,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct PayParams {
     pub pay_type: PayType,
     pub description: String,
@@ -58,13 +64,13 @@ pub struct PayParams {
     pub payer: Option<Payer>,
 }
 
-#[derive(Clone, Copy)]
-struct ApiBody<'a> {
-    url: &'a str,
+#[derive(Clone)]
+struct ApiBody {
+    url: String,
     method: Method,
-    pathname: &'a str,
+    pathname: String,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Method {
     GET,
     POST,
@@ -126,23 +132,23 @@ fn rand_string(len: usize) -> String {
         .collect::<String>()
 }
 
-impl<'a> WxPay<'a> {
+impl WxPay {
     pub fn new(
-        appid: &'a str,
-        mchid: &'a str,
-        private_key: &'a str,
-        serial_no: &'a str,
-        apiv3_private_key: &'a str,
-        notify_url: &'a str,
-        certificates: Option<&'a str>,
+        appid: &str,
+        mchid: &str,
+        private_key: &str,
+        serial_no: &str,
+        apiv3_private_key: &str,
+        notify_url: &str,
+        certificates: Option<String>,
     ) -> Self {
         WxPay {
-            appid,
-            mchid,
-            private_key,
-            serial_no,
-            apiv3_private_key,
-            notify_url,
+            appid: appid.to_string(),
+            mchid: mchid.to_string(),
+            private_key: private_key.to_string(),
+            serial_no: serial_no.to_string(),
+            apiv3_private_key: apiv3_private_key.to_string(),
+            notify_url: notify_url.to_string(),
             certificates,
         }
     }
@@ -165,7 +171,7 @@ impl<'a> WxPay<'a> {
 
     fn get_headers(
         &self,
-        api_body: ApiBody,
+        api_body: &ApiBody,
         params_string: &str,
     ) -> Result<HeaderMap, anyhow::Error> {
         let dt = Utc::now();
@@ -202,8 +208,8 @@ impl<'a> WxPay<'a> {
         Ok(headers)
     }
 
-    /// js 微信支付
-    pub fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
+    /// 微信支付
+    fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
         debug!("aaaj jsapi {}", &self.appid);
 
         if params.pay_type == PayType::Mini && params.payer.is_none() {
@@ -212,15 +218,15 @@ impl<'a> WxPay<'a> {
         // debug!("aaaj jsapi {:#?}", params.payer.openid);
 
         #[derive(Serialize, Deserialize)]
-        struct RequestParam<'a> {
+        struct RequestParam {
             description: String,
             out_trade_no: String,
             amount: Amount,
             #[serde(skip_serializing_if = "Option::is_none")]
             payer: Option<Payer>,
-            appid: &'a str,
-            mchid: &'a str,
-            notify_url: &'a str,
+            appid: String,
+            mchid: String,
+            notify_url: String,
         }
 
         let req_param = RequestParam {
@@ -228,28 +234,28 @@ impl<'a> WxPay<'a> {
             out_trade_no: params.out_trade_no,
             amount: params.amount,
             payer: params.payer,
-            appid: &self.appid,
-            mchid: &self.mchid,
-            notify_url: &self.notify_url,
+            appid: self.appid.clone(),
+            mchid: self.mchid.clone(),
+            notify_url: self.notify_url.clone(),
         };
 
-        let req_param_str = serde_json::to_string(&req_param).unwrap();
+        let req_param_str = serde_json::to_string(&req_param)?;
 
         debug!("req_param_str:{}", req_param_str);
         let api_body = match params.pay_type {
             PayType::App => ApiBody {
-                url: "https://api.mch.weixin.qq.com/v3/pay/transactions/app",
+                url: "https://api.mch.weixin.qq.com/v3/pay/transactions/app".to_string(),
                 method: Method::POST,
-                pathname: "/v3/pay/transactions/app",
+                pathname: "/v3/pay/transactions/app".to_string(),
             },
             PayType::Mini => ApiBody {
-                url: "https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi",
+                url: "https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi".to_string(),
                 method: Method::POST,
-                pathname: "/v3/pay/transactions/jsapi",
+                pathname: "/v3/pay/transactions/jsapi".to_string(),
             },
         };
 
-        let headers_all = self.get_headers(api_body, &req_param_str)?;
+        let headers_all = self.get_headers(&api_body, &req_param_str)?;
 
         #[derive(Serialize, Deserialize, Debug)]
         struct PaySuccessRes {
@@ -257,7 +263,7 @@ impl<'a> WxPay<'a> {
         }
         let client = reqwest::blocking::Client::new();
         let res = client
-            .post(api_body.url.clone())
+            .post(&api_body.url)
             .headers(headers_all)
             .json(&req_param)
             .send()?;
@@ -321,6 +327,28 @@ impl<'a> WxPay<'a> {
         Ok(wx_data)
     }
 
+    pub fn wx_pay(
+        &self,
+        pay_type: PayType,
+        description: &str,
+        out_trade_no: &str,
+        total: u32,
+        openid: Option<String>,
+    ) -> Result<WxData, anyhow::Error> {
+        let params = PayParams {
+            pay_type,
+            description: description.to_string(),
+            out_trade_no: out_trade_no.to_string(),
+            amount: Amount { total },
+            payer: openid.map(|v| Payer {
+                openid: v,
+            }),
+        };
+        log::debug!("params:{:#?}", params);
+        let wx_data = self.pay(params)?;
+        Ok(wx_data)
+    }
+
     /// 微信支付订单号查询
     /// https://api.mch.weixin.qq.com/v3/pay/transactions/id/{transaction_id}
     pub fn transactions_out_trade_no(
@@ -328,19 +356,19 @@ impl<'a> WxPay<'a> {
         out_trade_no: &str,
     ) -> Result<WxOrderRes, anyhow::Error> {
         let api_body = ApiBody {
-            url: &format!(
+            url: format!(
                 "https://api.mch.weixin.qq.com/v3/pay/transactions/out-trade-no/{}?mchid={}",
                 out_trade_no, self.mchid
             ),
             method: Method::GET,
-            pathname: &format!(
+            pathname: format!(
                 "/v3/pay/transactions/out-trade-no/{}?mchid={}",
                 out_trade_no, self.mchid
             ),
         };
         let client = reqwest::blocking::Client::new();
 
-        let headers_all = self.get_headers(api_body, "")?;
+        let headers_all = self.get_headers(&api_body, "")?;
         let res = client
             .get(api_body.url.clone())
             .headers(headers_all)
@@ -378,6 +406,53 @@ impl<'a> WxPay<'a> {
         debug!("order_res:{:#?}", order_res);
 
         Ok(order_res)
+    }
+
+    /// 微信支付，回调解密
+    pub fn decode_wx(&self, params: WxPayNotify) -> Result<WxNotifyData, anyhow::Error> {
+        let auth_key_length = 16;
+
+        let mut t_key = [0u8; 32];
+        hex::decode_to_slice(
+            hex::encode(&self.apiv3_private_key),
+            &mut t_key as &mut [u8],
+        )?;
+        let key = GenericArray::from_slice(&t_key);
+
+        let mut t_nonce = [0u8; 12];
+        hex::decode_to_slice(
+            hex::encode(params.resource.nonce.clone()),
+            &mut t_nonce as &mut [u8],
+        )?;
+        let nonce = GenericArray::from_slice(&t_nonce);
+
+        let t_ciphertext_base = base64::decode(params.resource.ciphertext.clone())?;
+        let cipherdata_length = t_ciphertext_base.len() - auth_key_length;
+
+        let cipherdata = &t_ciphertext_base[0..cipherdata_length];
+        let auth_tag = &t_ciphertext_base[cipherdata_length..];
+
+        let mut ciphertext = Vec::from(cipherdata);
+        ciphertext.extend_from_slice(&auth_tag);
+
+        let mut t_add = [0u8; 11]; // 这里可能会根据返回值 associated_data 长度而不同，目前应该是固定为 "transaction" 。
+        hex::decode_to_slice(
+            hex::encode(params.resource.associated_data.clone()),
+            &mut t_add as &mut [u8],
+        )?;
+        let payload = Payload {
+            msg: &ciphertext,
+            aad: &t_add,
+        };
+        let cipher = Aes256Gcm::new(key);
+        let plaintext = match cipher.decrypt(nonce, payload) {
+            Ok(v) => v,
+            Err(e) => bail!("解密失败:{:?}", e),
+        };
+        let content = std::str::from_utf8(&plaintext)?;
+        let data: WxNotifyData = serde_json::from_str(content)?;
+
+        Ok(data)
     }
 }
 
