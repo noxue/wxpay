@@ -35,9 +35,9 @@ pub struct WxPay {
 pub struct WxData {
     pub sign_type: String,
     pub pay_sign: String,
-    pub package: String,
+    pub prepay_id: String,
     pub nonce_str: String,
-    pub time_stamp: String,
+    pub timestamp: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -319,9 +319,9 @@ impl WxPay {
         let wx_data = WxData {
             sign_type: "RSA".into(),
             pay_sign: pay_si,
-            package: pack,
+            prepay_id: pre_data.prepay_id,
             nonce_str: ran_str,
-            time_stamp: now_time.to_string(),
+            timestamp: now_time.to_string(),
         };
 
         Ok(wx_data)
@@ -340,9 +340,7 @@ impl WxPay {
             description: description.to_string(),
             out_trade_no: out_trade_no.to_string(),
             amount: Amount { total },
-            payer: openid.map(|v| Payer {
-                openid: v,
-            }),
+            payer: openid.map(|v| Payer { openid: v }),
         };
         log::debug!("params:{:#?}", params);
         let wx_data = self.pay(params)?;
