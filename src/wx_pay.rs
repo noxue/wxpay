@@ -44,7 +44,7 @@ pub struct WxData {
 pub struct Amount {
     pub total: u32,
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Payer {
     pub openid: String,
 }
@@ -77,7 +77,7 @@ enum Method {
 }
 
 /// 微信支付，回调解密
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct WxNotifyData {
     pub mchid: String,
     pub appid: String,
@@ -92,7 +92,7 @@ pub struct WxNotifyData {
     pub payer: Payer,
     pub amount: WxNotifyDataAmount,
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct WxNotifyDataAmount {
     pub total: u32,
     pub payer_total: u32,
