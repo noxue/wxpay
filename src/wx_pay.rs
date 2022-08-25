@@ -209,7 +209,7 @@ impl WxPay {
     }
 
     /// 微信支付
-    fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
+    async fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
         debug!("aaaj jsapi {}", &self.appid);
 
         if params.pay_type == PayType::Mini && params.payer.is_none() {
@@ -261,37 +261,40 @@ impl WxPay {
         struct PaySuccessRes {
             prepay_id: String,
         }
-        let client = reqwest::blocking::Client::new();
+        let client = reqwest::Client::new();
         let res = client
             .post(&api_body.url)
             .headers(headers_all)
             .json(&req_param)
-            .send()?;
+            .send().await?;
 
-        match res.status() {
+        let status = res.status();
+        let text = res.text().await?;
+        match status {
             StatusCode::FORBIDDEN => {
-                log::error!("交易错误:{:?}", res.text());
+                log::error!("交易错误:{:?}", text);
                 bail!("交易错误，请检查 订单号是否重复，商户是否有权限")
             }
             StatusCode::INTERNAL_SERVER_ERROR => {
-                log::error!("系统错误:{:?}", res.text());
+                log::error!("系统错误:{:?}", text);
                 bail!("系统错误")
             }
 
             StatusCode::UNAUTHORIZED => {
-                log::error!("签名错误:{:?}", res.text());
+                log::error!("签名错误:{:?}", text);
                 bail!("签名错误	")
             }
 
-            _ => {}
+            e => {
+                log::error!("签名错误:{:?}", e);
+            }
         }
 
-        let pre_data = res.text()?;
-        debug!("pre_data:{:#?}", pre_data);
-        let pre_data: PaySuccessRes = match serde_json::from_str(&pre_data) {
+        debug!("pre_data:{:#?}", text);
+        let pre_data: PaySuccessRes = match serde_json::from_str(&text) {
             Ok(v) => v,
             Err(e) => {
-                let v: Value = serde_json::from_str(&pre_data)?;
+                let v: Value = serde_json::from_str(&text)?;
                 bail!(v["message"]
                     .as_str()
                     .unwrap_or(e.to_string().as_str())
@@ -327,7 +330,7 @@ impl WxPay {
         Ok(wx_data)
     }
 
-    pub fn wx_pay(
+    pub async fn wx_pay(
         &self,
         pay_type: PayType,
         description: &str,
@@ -343,13 +346,13 @@ impl WxPay {
             payer: openid.map(|v| Payer { openid: v }),
         };
         log::debug!("params:{:#?}", params);
-        let wx_data = self.pay(params)?;
+        let wx_data = self.pay(params).await?;
         Ok(wx_data)
     }
 
     /// 微信支付订单号查询
     /// https://api.mch.weixin.qq.com/v3/pay/transactions/id/{transaction_id}
-    pub fn transactions_out_trade_no(
+    pub async fn transactions_out_trade_no(
         &self,
         out_trade_no: &str,
     ) -> Result<WxOrderRes, anyhow::Error> {
@@ -364,43 +367,45 @@ impl WxPay {
                 out_trade_no, self.mchid
             ),
         };
-        let client = reqwest::blocking::Client::new();
+        let client = reqwest::Client::new();
 
         let headers_all = self.get_headers(&api_body, "")?;
         let res = client
             .get(api_body.url.clone())
             .headers(headers_all)
-            .send()?;
+            .send().await?;
 
-        match res.status() {
+        let status = res.status();
+        let text = res.text().await?;
+        match status {
             StatusCode::NOT_FOUND => {
-                log::error!("订单不存在:{:?}", res.text());
+                log::error!("订单不存在:{:?}", text);
                 bail!("订单不存在")
             }
             StatusCode::BAD_REQUEST => {
-                log::error!("签名错误：{:?}", res.text());
+                log::error!("签名错误：{:?}", text);
                 bail!("订单已关闭")
             }
             StatusCode::UNAUTHORIZED => {
-                log::error!("签名错误：{:?}", res.text());
+                log::error!("签名错误：{:?}", text);
                 bail!("签名错误")
             }
             StatusCode::FORBIDDEN => {
-                log::error!("交易错误:{:?}", res.text());
+                log::error!("交易错误:{:?}", text);
                 bail!("交易错误")
             }
             StatusCode::TOO_MANY_REQUESTS => {
-                log::error!("频率超限:{:?}", res.text());
+                log::error!("频率超限:{:?}", text);
                 bail!("频率超限")
             }
             StatusCode::INTERNAL_SERVER_ERROR => {
-                log::error!("订单号非法:{:?}", res.text());
+                log::error!("订单号非法:{:?}", text);
                 bail!("订单号非法 或 系统错误 或 银行系统异常")
             }
             _ => {}
         };
 
-        let order_res: WxOrderRes = res.json()?;
+        let order_res: WxOrderRes = serde_json::from_str(&text)?;
         debug!("order_res:{:#?}", order_res);
 
         Ok(order_res)
@@ -460,9 +465,12 @@ mod test {
 
     use super::{Payer, WxPay};
     use std::{println as debug, println as info, println as warn, println as error};
+    
 
     #[test]
     fn test_jsapi() {
+
+
         let key = fs::read_to_string("d:/data/cert/apiclient_key.pem").unwrap();
         let pay = WxPay::new(
             "wx9b0ca8695776f224",
