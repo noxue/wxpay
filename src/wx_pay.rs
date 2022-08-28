@@ -266,7 +266,8 @@ impl WxPay {
             .post(&api_body.url)
             .headers(headers_all)
             .json(&req_param)
-            .send().await?;
+            .send()
+            .await?;
 
         let status = res.status();
         let text = res.text().await?;
@@ -286,7 +287,9 @@ impl WxPay {
             }
 
             e => {
-                log::error!("签名错误:{:?}", e);
+                if e != 200 {
+                    log::error!("签名错误:{:?}", e);
+                }
             }
         }
 
@@ -317,11 +320,13 @@ impl WxPay {
             + "\n";
 
         // 获取签名
-        let pay_si = self.sign(&content, &self.private_key)?;
+        let pay_sign = self.sign(&content, &self.private_key)?;
+
+        log::debug!("pay_sign:{}", pay_sign);
 
         let wx_data = WxData {
             sign_type: "RSA".into(),
-            pay_sign: pay_si,
+            pay_sign: pay_sign,
             prepay_id: pre_data.prepay_id,
             nonce_str: ran_str,
             timestamp: now_time.to_string(),
@@ -373,7 +378,8 @@ impl WxPay {
         let res = client
             .get(api_body.url.clone())
             .headers(headers_all)
-            .send().await?;
+            .send()
+            .await?;
 
         let status = res.status();
         let text = res.text().await?;
@@ -465,12 +471,9 @@ mod test {
 
     use super::{Payer, WxPay};
     use std::{println as debug, println as info, println as warn, println as error};
-    
 
     #[test]
     fn test_jsapi() {
-
-
         let key = fs::read_to_string("d:/data/cert/apiclient_key.pem").unwrap();
         let pay = WxPay::new(
             "wx9b0ca8695776f224",
