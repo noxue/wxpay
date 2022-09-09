@@ -16,13 +16,12 @@ use serde_json::Value;
 use sha2::Digest;
 
 #[cfg(not(test))]
-use log::{debug, info, warn}; // Use log crate when building application
+use log::{debug, info, warn};
 #[cfg(test)]
-use std::{println as debug, println as info, println as warn, println as error}; // Workaround to use prinltn! for logs.
+use std::{println as debug, println as info, println as warn, println as error};
 
 #[derive(Debug, Clone)]
 pub struct WxPay {
-    appid: String,
     mchid: String,
     private_key: String,
     serial_no: String,
@@ -56,6 +55,9 @@ pub enum PayType {
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PayParams {
+    // appid 不同场景下使用不同的id，
+    // 比如小程序使用小程序appid，app支付使用app应用的appid，公众号使用公众号appid
+    pub appid: String,
     pub pay_type: PayType,
     pub description: String,
     pub out_trade_no: String,
@@ -134,7 +136,6 @@ fn rand_string(len: usize) -> String {
 
 impl WxPay {
     pub fn new(
-        appid: &str,
         mchid: &str,
         private_key: &str,
         serial_no: &str,
@@ -143,7 +144,6 @@ impl WxPay {
         certificates: Option<String>,
     ) -> Self {
         WxPay {
-            appid: appid.to_string(),
             mchid: mchid.to_string(),
             private_key: private_key.to_string(),
             serial_no: serial_no.to_string(),
@@ -210,13 +210,9 @@ impl WxPay {
 
     /// 微信支付
     async fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
-        debug!("jsapi-appid:{}", &self.appid);
-
         if params.pay_type == PayType::Mini && params.payer.is_none() {
             bail!("微信小程序支付必须提供payer.openid");
         }
-        // debug!("aaaj jsapi {:#?}", params.payer.openid);
-
         #[derive(Serialize, Deserialize)]
         struct RequestParam {
             description: String,
@@ -234,7 +230,7 @@ impl WxPay {
             out_trade_no: params.out_trade_no,
             amount: params.amount,
             payer: params.payer,
-            appid: self.appid.clone(),
+            appid: params.appid.clone(),
             mchid: self.mchid.clone(),
             notify_url: self.notify_url.clone(),
         };
@@ -310,7 +306,7 @@ impl WxPay {
         let dt = Utc::now();
         let now_time = dt.timestamp();
 
-        let content = self.appid.to_string()
+        let content = params.appid
             + "\n"
             + now_time.to_string().as_str()
             + "\n"
@@ -337,6 +333,7 @@ impl WxPay {
 
     pub async fn wx_pay(
         &self,
+        appid: &str,
         pay_type: PayType,
         description: &str,
         out_trade_no: &str,
@@ -344,6 +341,7 @@ impl WxPay {
         openid: Option<String>,
     ) -> Result<WxData, anyhow::Error> {
         let params = PayParams {
+            appid: appid.to_string(),
             pay_type,
             description: description.to_string(),
             out_trade_no: out_trade_no.to_string(),
@@ -474,7 +472,8 @@ mod test {
 
     #[test]
     fn test_jsapi() {
-        let rt = tokio::runtime::Builder::new_current_thread().enable_all()
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
             .build()
             .unwrap();
         rt.block_on(async {
