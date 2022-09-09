@@ -210,7 +210,7 @@ impl WxPay {
 
     /// 微信支付
     async fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
-        debug!("aaaj jsapi {}", &self.appid);
+        debug!("jsapi-appid:{}", &self.appid);
 
         if params.pay_type == PayType::Mini && params.payer.is_none() {
             bail!("微信小程序支付必须提供payer.openid");
@@ -474,42 +474,47 @@ mod test {
 
     #[test]
     fn test_jsapi() {
-        let key = fs::read_to_string("d:/data/cert/apiclient_key.pem").unwrap();
-        let pay = WxPay::new(
-            "wx9b0ca8695776f224",
-            "1629824688",
-            &key,
-            "7CB273D2C44A54E21992BEBAF72C0321D40EEB38",
-            "8497b6e0ff86bb6288badd19444855cd",
-            "https://api.uchu360.com/notify",
-            None,
-        );
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            let key = fs::read_to_string("d:/data/cert/apiclient_key.pem").unwrap();
+            let pay = WxPay::new(
+                "wx9b0ca8695776f224",
+                "1629824688",
+                &key,
+                "7CB273D2C44A54E21992BEBAF72C0321D40EEB38",
+                "8497b6e0ff86bb6288badd19444855cd",
+                "https://api.uchu360.com/notify",
+                None,
+            );
 
-        let params = super::PayParams {
-            pay_type: crate::wx_pay::PayType::Mini,
-            description: "xxx".to_string(),
-            out_trade_no: "8888888888".to_string(),
-            amount: super::Amount { total: 1 },
-            payer: Some(Payer {
-                openid: "xxxxxx".to_string(),
-            }),
-        };
-        let res = pay.pay(params);
-        debug!("res:{:#?}", res);
+            // let params = super::PayParams {
+            //     pay_type: crate::wx_pay::PayType::Mini,
+            //     description: "xxx".to_string(),
+            //     out_trade_no: "8888888888".to_string(),
+            //     amount: super::Amount { total: 1 },
+            //     payer: Some(Payer {
+            //         openid: "xxxxxx".to_string(),
+            //     }),
+            // };
+            // let res = pay.pay(params);
+            // debug!("res:{:#?}", res);
 
-        // app
-        let params = super::PayParams {
-            pay_type: crate::wx_pay::PayType::App,
-            description: "xxx".to_string(),
-            out_trade_no: "8888888888".to_string(),
-            amount: super::Amount { total: 1 },
-            payer: None,
-        };
+            // app
+            let params = super::PayParams {
+                pay_type: crate::wx_pay::PayType::App,
+                description: "xxx".to_string(),
+                out_trade_no: "88888888dd55858".to_string(),
+                amount: super::Amount { total: 1 },
+                payer: None,
+            };
 
-        let res = pay.pay(params);
-        debug!("res:{:#?}", res);
+            let res = pay.pay(params).await;
+            debug!("res:{:#?}", res);
 
-        let res = pay.transactions_out_trade_no("9999999999");
-        debug!("res:{:#?}", res);
+            let res = pay.transactions_out_trade_no("9999999999").await;
+            debug!("res:{:#?}", res);
+        });
     }
 }
