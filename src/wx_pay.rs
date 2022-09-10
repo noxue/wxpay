@@ -16,7 +16,7 @@ use serde_json::Value;
 use sha2::Digest;
 
 #[cfg(not(test))]
-use log::{debug, info, warn};
+use log::debug;
 #[cfg(test)]
 use std::{println as debug, println as info, println as warn, println as error};
 
@@ -27,7 +27,6 @@ pub struct WxPay {
     serial_no: String,
     apiv3_private_key: String,
     notify_url: String,
-    certificates: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -141,7 +140,6 @@ impl WxPay {
         serial_no: &str,
         apiv3_private_key: &str,
         notify_url: &str,
-        certificates: Option<String>,
     ) -> Self {
         WxPay {
             mchid: mchid.to_string(),
@@ -149,7 +147,6 @@ impl WxPay {
             serial_no: serial_no.to_string(),
             apiv3_private_key: apiv3_private_key.to_string(),
             notify_url: notify_url.to_string(),
-            certificates,
         }
     }
 
@@ -479,13 +476,11 @@ mod test {
         rt.block_on(async {
             let key = fs::read_to_string("d:/data/cert/apiclient_key.pem").unwrap();
             let pay = WxPay::new(
-                "wx9b0ca8695776f224",
                 "1629824688",
                 &key,
                 "7CB273D2C44A54E21992BEBAF72C0321D40EEB38",
                 "8497b6e0ff86bb6288badd19444855cd",
                 "https://api.uchu360.com/notify",
-                None,
             );
 
             // let params = super::PayParams {
@@ -502,6 +497,7 @@ mod test {
 
             // app
             let params = super::PayParams {
+                appid:"wx9b0ca8695776f224".to_string(),
                 pay_type: crate::wx_pay::PayType::App,
                 description: "xxx".to_string(),
                 out_trade_no: "88888888dd55858".to_string(),
