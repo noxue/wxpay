@@ -22,11 +22,11 @@ use std::{println as debug, println as info, println as warn, println as error};
 
 #[derive(Debug, Clone)]
 pub struct WxPay {
-    mchid: String,
-    private_key: String,
-    serial_no: String,
-    apiv3_private_key: String,
-    notify_url: String,
+    mchid: String,             // 商户编号
+    private_key: String,       // 秘钥文件apiclient_key.pem中的内容
+    serial_no: String,         // 证书序列号
+    apiv3_private_key: String, // apiv3秘钥
+    notify_url: String,        // 通知地址
 }
 
 #[derive(Serialize, Debug)]
@@ -50,7 +50,7 @@ pub struct Payer {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum PayType {
     App,
-    Mini,
+    JsApi,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PayParams {
@@ -207,8 +207,10 @@ impl WxPay {
 
     /// 微信支付
     async fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
-        if params.pay_type == PayType::Mini && params.payer.is_none() {
-            bail!("微信小程序支付必须提供payer.openid");
+        if params.pay_type == PayType::JsApi
+            && params.payer.is_none()
+        {
+            bail!("JSAPI支付必须提供 payer.openid 参数");
         }
         #[derive(Serialize, Deserialize)]
         struct RequestParam {
@@ -241,7 +243,7 @@ impl WxPay {
                 method: Method::POST,
                 pathname: "/v3/pay/transactions/app".to_string(),
             },
-            PayType::Mini => ApiBody {
+            PayType::JsApi => ApiBody {
                 url: "https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi".to_string(),
                 method: Method::POST,
                 pathname: "/v3/pay/transactions/jsapi".to_string(),
@@ -474,41 +476,42 @@ mod test {
             .build()
             .unwrap();
         rt.block_on(async {
-            let key = fs::read_to_string("d:/data/cert/apiclient_key.pem").unwrap();
+            let key = fs::read_to_string("d:/data/90cert/apiclient_key.pem").unwrap();
             let pay = WxPay::new(
-                "1629824688",
+                "1559838011",
                 &key,
-                "7CB273D2C44A54E21992BEBAF72C0321D40EEB38",
-                "8497b6e0ff86bb6288badd19444855cd",
-                "https://api.uchu360.com/notify",
+                "3CD22EDD308C27AB6A52FEB55A424AD4BB98254B",
+                "3A252DB28DA635467AD80365E87DB041",
+                "https://dot2.com/notify",
             );
 
-            // let params = super::PayParams {
-            //     pay_type: crate::wx_pay::PayType::Mini,
-            //     description: "xxx".to_string(),
-            //     out_trade_no: "8888888888".to_string(),
-            //     amount: super::Amount { total: 1 },
-            //     payer: Some(Payer {
-            //         openid: "xxxxxx".to_string(),
-            //     }),
-            // };
-            // let res = pay.pay(params);
-            // debug!("res:{:#?}", res);
-
-            // app
             let params = super::PayParams {
-                appid:"wx9b0ca8695776f224".to_string(),
-                pay_type: crate::wx_pay::PayType::App,
+                pay_type: crate::wx_pay::PayType::JsApi,
                 description: "xxx".to_string(),
-                out_trade_no: "88888888dd5585811".to_string(),
+                out_trade_no: "1111111".to_string(),
                 amount: super::Amount { total: 1 },
-                payer: None,
+                payer: Some(Payer {
+                    openid: "ojH2_6pbj0fvS4PA3pde9zCbrpKU".to_string(),
+                }),
+                appid: "wxd9b8baefff3dd571".to_string(),
             };
-
             let res = pay.pay(params).await;
             debug!("res:{:#?}", res);
 
-            let res = pay.transactions_out_trade_no("9999999999").await;
+            // // app
+            // let params = super::PayParams {
+            //     appid: "wx9b0ca8695776f224".to_string(),
+            //     pay_type: crate::wx_pay::PayType::App,
+            //     description: "xxx".to_string(),
+            //     out_trade_no: "88888888dd5585811".to_string(),
+            //     amount: super::Amount { total: 1 },
+            //     payer: None,
+            // };
+
+            // let res = pay.pay(params).await;
+            // debug!("res:{:#?}", res);
+
+            let res = pay.transactions_out_trade_no("1111111").await;
             debug!("res:{:#?}", res);
         });
     }
