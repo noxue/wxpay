@@ -500,7 +500,7 @@ mod test {
                 appid:"wx9b0ca8695776f224".to_string(),
                 pay_type: crate::wx_pay::PayType::App,
                 description: "xxx".to_string(),
-                out_trade_no: "88888888dd55858".to_string(),
+                out_trade_no: "88888888dd5585811".to_string(),
                 amount: super::Amount { total: 1 },
                 payer: None,
             };
