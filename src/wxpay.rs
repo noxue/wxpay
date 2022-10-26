@@ -206,7 +206,7 @@ impl WxPay {
     }
 
     /// 微信支付
-    async fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
+    pub async fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
         if params.pay_type == PayType::JsApi
             && params.payer.is_none()
         {
@@ -486,7 +486,7 @@ mod test {
             );
 
             let params = super::PayParams {
-                pay_type: crate::wx_pay::PayType::JsApi,
+                pay_type: crate::wxpay::PayType::JsApi,
                 description: "xxx".to_string(),
                 out_trade_no: "1111111".to_string(),
                 amount: super::Amount { total: 1 },
