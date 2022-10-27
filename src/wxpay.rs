@@ -206,7 +206,7 @@ impl WxPay {
     }
 
     /// 微信支付
-    pub async fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
+    async fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
         if params.pay_type == PayType::JsApi
             && params.payer.is_none()
         {
