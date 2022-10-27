@@ -121,8 +121,8 @@ pub struct WxPayNotify {
 #[derive(Serialize, Deserialize, Debug)]
 // #[serde(deny_unknown_fields)]
 pub struct WxOrderRes {
-    trade_state: String,
-    trade_state_desc: String,
+    pub trade_state: String,
+    pub trade_state_desc: String,
 }
 
 fn rand_string(len: usize) -> String {
