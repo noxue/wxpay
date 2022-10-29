@@ -29,7 +29,7 @@ pub struct WxPay {
     notify_url: String,        // 通知地址
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize,Deserialize, Debug)]
 pub struct WxData {
     pub sign_type: String,
     pub pay_sign: String,
