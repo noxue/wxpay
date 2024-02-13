@@ -29,7 +29,7 @@ pub struct WxPay {
     notify_url: String,        // 通知地址
 }
 
-#[derive(Serialize,Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WxData {
     pub sign_type: String,
     pub pay_sign: String,
@@ -207,9 +207,7 @@ impl WxPay {
 
     /// 微信支付
     async fn pay(&self, params: PayParams) -> Result<WxData, anyhow::Error> {
-        if params.pay_type == PayType::JsApi
-            && params.payer.is_none()
-        {
+        if params.pay_type == PayType::JsApi && params.payer.is_none() {
             bail!("JSAPI支付必须提供 payer.openid 参数");
         }
         #[derive(Serialize, Deserialize)]
@@ -469,50 +467,49 @@ mod test {
     use super::{Payer, WxPay};
     use std::{println as debug, println as info, println as warn, println as error};
 
-    #[test]
-    fn test_jsapi() {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        rt.block_on(async {
-            let key = fs::read_to_string("d:/data/90cert/apiclient_key.pem").unwrap();
-            let pay = WxPay::new(
-                "1559838011",
-                &key,
-                "3CD22EDD308C27AB6A52FEB55A424AD4BB98254B",
-                "3A252DB28DA635467AD80365E87DB041",
-                "https://dot2.com/notify",
-            );
+    #[tokio::test]
+    async fn test_jsapi() {
+        
+        let key = fs::read_to_string("./apiclient_key.pem").unwrap();
+        let pay = WxPay::new(
+            "1559838011",
+            &key,
+            "3CD22EDD308C27AB6A52FEB55A424AD4BB98254B",
+            "3A252DB28DA635467AD80365E87DB041",
+            "https://dot2.com/notify",
+        );
 
-            let params = super::PayParams {
-                pay_type: crate::wxpay::PayType::JsApi,
-                description: "xxx".to_string(),
-                out_trade_no: "1111111".to_string(),
-                amount: super::Amount { total: 1 },
-                payer: Some(Payer {
-                    openid: "ojH2_6pbj0fvS4PA3pde9zCbrpKU".to_string(),
-                }),
-                appid: "wxd9b8baefff3dd571".to_string(),
-            };
-            let res = pay.pay(params).await;
-            debug!("res:{:#?}", res);
+        let out_trade_no = super::rand_string(32);
 
-            // // app
-            // let params = super::PayParams {
-            //     appid: "wx9b0ca8695776f224".to_string(),
-            //     pay_type: crate::wx_pay::PayType::App,
-            //     description: "xxx".to_string(),
-            //     out_trade_no: "88888888dd5585811".to_string(),
-            //     amount: super::Amount { total: 1 },
-            //     payer: None,
-            // };
+        let params = super::PayParams {
+            pay_type: crate::wxpay::PayType::JsApi,
+            description: "xxx".to_string(),
+            out_trade_no: out_trade_no.clone(),
+            amount: super::Amount { total: 1 },
+            payer: Some(Payer {
+                openid: "ojH2_6pbj0fvS4PA3pde9zCbrpKU".to_string(),
+            }),
+            appid: "wxd9b8baefff3dd571".to_string(),
+        };
+        let res = pay.pay(params).await;
+        debug!("res:{:#?}", res);
 
-            // let res = pay.pay(params).await;
-            // debug!("res:{:#?}", res);
+        // // app
+        // let params = super::PayParams {
+        //     appid: "wx9b0ca8695776f224".to_string(),
+        //     pay_type: crate::wx_pay::PayType::App,
+        //     description: "xxx".to_string(),
+        //     out_trade_no: "88888888dd5585811".to_string(),
+        //     amount: super::Amount { total: 1 },
+        //     payer: None,
+        // };
 
-            let res = pay.transactions_out_trade_no("1111111").await;
-            debug!("res:{:#?}", res);
-        });
+        // let res = pay.pay(params).await;
+        // debug!("res:{:#?}", res);
+
+        // rand str
+        
+        let res = pay.transactions_out_trade_no(&out_trade_no).await;
+        debug!("res:{:#?}", res);
     }
 }
