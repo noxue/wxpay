@@ -22,11 +22,11 @@ use std::{println as debug, println as info, println as warn, println as error};
 
 #[derive(Debug, Clone)]
 pub struct WxPay {
-    mchid: String,             // 商户编号
-    private_key: String,       // 秘钥文件apiclient_key.pem中的内容
-    serial_no: String,         // 证书序列号
-    apiv3_private_key: String, // apiv3秘钥
-    notify_url: String,        // 通知地址
+    pub mchid: String,             // 商户编号
+    pub private_key: String,       // 秘钥文件apiclient_key.pem中的内容
+    pub serial_no: String,         // 证书序列号
+    pub apiv3_private_key: String, // apiv3秘钥
+    pub notify_url: String,        // 通知地址
 }
 
 #[derive(Serialize, Deserialize, Debug)]
