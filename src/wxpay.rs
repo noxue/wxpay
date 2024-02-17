@@ -125,6 +125,59 @@ pub struct WxOrderRes {
     pub trade_state_desc: String,
 }
 
+// 退款
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WxRefundRes {
+    pub refund_id: String,
+    pub out_refund_no: String,
+    pub transaction_id: String,
+    pub out_trade_no: String,
+    pub channel: String,
+    pub user_received_account: String,
+    pub success_time: String,
+    pub create_time: String,
+    pub status: String,
+    pub funds_account: String,
+    pub amount: WxRefundResAmount,
+    pub promotion_detail: Vec<WxRefundResPromotionDetail>,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WxRefundResAmount {
+    pub total: u32,
+    pub refund: u32,
+    pub payer_total: u32,
+    pub payer_refund: u32,
+    pub settlement_refund: u32,
+    pub settlement_total: u32,
+    pub discount_refund: u32,
+    pub currency: String,
+    pub refund_fee: u32,
+    pub from: Vec<WxRefundResAmountFrom>,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WxRefundResAmountFrom {
+    pub account: String,
+    pub amount: u32,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WxRefundResPromotionDetail {
+    pub promotion_id: String,
+    pub scope: String,
+    pub r#type: String,
+    pub amount: u32,
+    pub refund_amount: u32,
+    pub goods_detail: Vec<WxRefundResPromotionDetailGoodsDetail>,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WxRefundResPromotionDetailGoodsDetail {
+    pub merchant_goods_id: String,
+    pub wechatpay_goods_id: String,
+    pub goods_name: String,
+    pub unit_price: u32,
+    pub refund_amount: u32,
+    pub refund_quantity: u32,
+}
+
 fn rand_string(len: usize) -> String {
     rand::thread_rng()
         .sample_iter(Alphanumeric)
@@ -412,6 +465,215 @@ impl WxPay {
         Ok(order_res)
     }
 
+    /// 退款
+    pub async fn refund(&self) -> Result<(), anyhow::Error> {
+        /*
+              curl -X POST \
+        https://api.mch.weixin.qq.com/v3/refund/domestic/refunds \
+        -H "Authorization: WECHATPAY2-SHA256-RSA2048 mchid=\"1900000001\",..." \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "transaction_id" : "1217752501201407033233368018",
+          "out_trade_no" : "1217752501201407033233368018",
+          "out_refund_no" : "1217752501201407033233368018",
+          "reason" : "商品已售完",
+          "notify_url" : "https://weixin.qq.com",
+          "funds_account" : "AVAILABLE",
+          "amount" : {
+            "refund" : 888,
+            "from" : [
+              {
+                "account" : "AVAILABLE",
+                "amount" : 444
+              }
+            ],
+            "total" : 888,
+            "currency" : "CNY"
+          },
+          "goods_detail" : [
+            {
+              "merchant_goods_id" : "1217752501201407033233368018",
+              "wechatpay_goods_id" : "1001",
+              "goods_name" : "iPhone6s 16G",
+              "unit_price" : 528800,
+              "refund_amount" : 528800,
+              "refund_quantity" : 1
+            }
+          ]
+        }' */
+        // 模拟上方请求
+        //   let api_body = ApiBody {
+        //     url: format!(
+        //         "https://api.mch.weixin.qq.com/v3/pay/transactions/out-trade-no/{}?mchid={}",
+        //         out_trade_no, self.mchid
+        //     ),
+        //     method: Method::GET,
+        //     pathname: format!(
+        //         "/v3/pay/transactions/out-trade-no/{}?mchid={}",
+        //         out_trade_no, self.mchid
+        //     ),
+        // };
+        // let client = reqwest::Client::new();
+
+        // let headers_all = self.get_headers(&api_body, "")?;
+        // let res = client
+        //     .get(api_body.url.clone())
+        //     .headers(headers_all)
+        //     .send()
+        //     .await?;
+        let api_body = ApiBody {
+            url: "https://api.mch.weixin.qq.com/v3/refund/domestic/refunds".to_string(),
+            method: Method::POST,
+            pathname: "/v3/refund/domestic/refunds".to_string(),
+        };
+        let client = reqwest::Client::new();
+
+        let headers_all = self.get_headers(&api_body, "")?;
+
+        let req_param = r#"{
+        "transaction_id" : "1217752501201407033233368018",
+        "out_trade_no" : "1217752501201407033233368018",
+        "out_refund_no" : "1217752501201407033233368018",
+        "reason" : "商品已售完",
+        "notify_url" : "https://weixin.qq.com",
+        "funds_account" : "AVAILABLE",
+        "amount" : {
+          "refund" : 888,
+          "from" : [
+            {
+              "account" : "AVAILABLE",
+              "amount" : 444
+            }
+          ],
+          "total" : 888,
+          "currency" : "CNY"
+        },
+        "goods_detail" : [
+          {
+            "merchant_goods_id" : "1217752501201407033233368018",
+            "wechatpay_goods_id" : "1001",
+            "goods_name" : "iPhone6s 16G",
+            "unit_price" : 528800,
+            "refund_amount" : 528800,
+            "refund_quantity" : 1
+          }
+        ]
+      }"#;
+
+        let res = client
+            .post(api_body.url.clone())
+            .headers(headers_all)
+            .json(&req_param)
+            .send()
+            .await?;
+
+             /*
+        
+        错误码
+#公共错误码
+状态码	错误码	描述	解决方案
+400	PARAM_ERROR	参数错误	请根据错误提示正确传入参数
+400	INVALID_REQUEST	HTTP 请求不符合微信支付 APIv3 接口规则	请参阅 接口规则
+401	SIGN_ERROR	验证不通过	请参阅 签名常见问题
+500	SYSTEM_ERROR	系统异常，请稍后重试	请稍后重试
+#业务错误码
+状态码	错误码	描述	解决方案
+400	INVALID_REQUEST	请求参数符合参数格式，但不符合业务规则	此状态代表退款申请失败，商户可根据具体的错误提示做相应的处理。
+401	SIGN_ERROR	签名错误	请检查签名参数和方法是否都符合签名算法要求
+403	NO_AUTH	没有退款权限	此状态代表退款申请失败，请检查是否有该笔订单的退款权限
+403	NOT_ENOUGH	余额不足	此状态代表退款申请失败，商户可根据具体的错误提示做相应的处理。
+403	USER_ACCOUNT_ABNORMAL	退款请求失败	此状态代表退款申请失败，商户可自行处理退款。
+404	MCH_NOT_EXISTS	MCHID不存在	请检查MCHID是否正确
+404	RESOURCE_NOT_EXISTS	订单号不存在	请检查你的订单号是否正确且是否已支付，未支付的订单不能发起退款
+429	FREQUENCY_LIMITED	频率限制	该笔退款未受理，请降低频率后重试
+500	SYSTEM_ERROR	系统超时	请不要更换商户退款单号，请使用相同参数再次调用API。
+        应答示例
+            {
+          "refund_id" : "50000000382019052709732678859",
+          "out_refund_no" : "1217752501201407033233368018",
+          "transaction_id" : "1217752501201407033233368018",
+          "out_trade_no" : "1217752501201407033233368018",
+          "channel" : "ORIGINAL",
+          "user_received_account" : "招商银行信用卡0403",
+          "success_time" : "2020-12-01T16:18:12+08:00",
+          "create_time" : "2020-12-01T16:18:12+08:00",
+          "status" : "SUCCESS",
+          "funds_account" : "UNSETTLED",
+          "amount" : {
+            "total" : 100,
+            "refund" : 100,
+            "from" : [
+              {
+                "account" : "AVAILABLE",
+                "amount" : 444
+              }
+            ],
+            "payer_total" : 90,
+            "payer_refund" : 90,
+            "settlement_refund" : 100,
+            "settlement_total" : 100,
+            "discount_refund" : 10,
+            "currency" : "CNY",
+            "refund_fee" : 100
+          },
+          "promotion_detail" : [
+            {
+              "promotion_id" : "109519",
+              "scope" : "GLOBAL",
+              "type" : "COUPON",
+              "amount" : 5,
+              "refund_amount" : 100,
+              "goods_detail" : [
+                {
+                  "merchant_goods_id" : "1217752501201407033233368018",
+                  "wechatpay_goods_id" : "1001",
+                  "goods_name" : "iPhone6s 16G",
+                  "unit_price" : 528800,
+                  "refund_amount" : 528800,
+                  "refund_quantity" : 1
+                }
+              ]
+            }
+          ]
+        }
+         */
+        let status = res.status();
+        let text = res.text().await?;
+        match status {
+            StatusCode::NOT_FOUND => {
+                log::error!("订单不存在:{:?}", text);
+                bail!("订单不存在")
+            }
+            StatusCode::BAD_REQUEST => {
+                log::error!("签名错误：{:?}", text);
+                bail!("订单已关闭")
+            }
+            StatusCode::UNAUTHORIZED => {
+                log::error!("签名错误：{:?}", text);
+                bail!("签名错误")
+            }
+            StatusCode::FORBIDDEN => {
+                log::error!("交易错误:{:?}", text);
+                bail!("交易错误")
+            }
+            StatusCode::TOO_MANY_REQUESTS => {
+                log::error!("频率超限:{:?}", text);
+                bail!("频率超限")
+            }
+            StatusCode::INTERNAL_SERVER_ERROR => {
+                log::error!("订单号非法:{:?}", text);
+                bail!("订单号非法 或 系统错误 或 银行系统异常")
+            }
+            _ => {}
+        };
+
+        let order_res: WxOrderRes = serde_json::from_str(&text)?;
+        debug!("order_res:{:#?}", order_res);
+
+        Ok(())
+    }
+
     /// 微信支付，回调解密
     pub fn decode_wx(&self, params: WxPayNotify) -> Result<WxNotifyData, anyhow::Error> {
         let auth_key_length = 16;
@@ -454,7 +716,10 @@ impl WxPay {
             Err(e) => bail!("解密失败:{:?}", e),
         };
         let content = std::str::from_utf8(&plaintext)?;
-        let data: WxNotifyData = serde_json::from_str(content)?;
+        // 退款
+        let wx_data: WxRefundRes = serde_json::from_str(content)?;
+        debug!("wx_data:{:#?}", wx_data);
+
 
         Ok(data)
     }
@@ -469,7 +734,6 @@ mod test {
 
     #[tokio::test]
     async fn test_jsapi() {
-        
         let key = fs::read_to_string("./apiclient_key.pem").unwrap();
         let pay = WxPay::new(
             "1559838011",
@@ -508,7 +772,7 @@ mod test {
         // debug!("res:{:#?}", res);
 
         // rand str
-        
+
         let res = pay.transactions_out_trade_no(&out_trade_no).await;
         debug!("res:{:#?}", res);
     }
