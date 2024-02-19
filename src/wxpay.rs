@@ -31,10 +31,17 @@ pub struct WxPay {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct WxData {
+    #[serde(rename = "appId")]
+    pub appid: String,
+    pub package: String,
+    #[serde(rename = "signType")]
     pub sign_type: String,
+    #[serde(rename = "paySign")]
     pub pay_sign: String,
     pub prepay_id: String,
+    #[serde(rename = "nonceStr")]
     pub nonce_str: String,
+    #[serde(rename = "timeStamp")]
     pub timestamp: String,
 }
 
@@ -303,7 +310,7 @@ impl WxPay {
         let dt = Utc::now();
         let now_time = dt.timestamp();
 
-        let content = params.appid
+        let content = params.appid.clone()
             + "\n"
             + now_time.to_string().as_str()
             + "\n"
@@ -319,7 +326,9 @@ impl WxPay {
 
         let wx_data = WxData {
             sign_type: "RSA".into(),
-            pay_sign: pay_sign,
+            appid: params.appid,
+            package: pack,
+            pay_sign,
             prepay_id: pre_data.prepay_id,
             nonce_str: ran_str,
             timestamp: now_time.to_string(),
@@ -469,7 +478,6 @@ mod test {
 
     #[tokio::test]
     async fn test_jsapi() {
-        
         let key = fs::read_to_string("./apiclient_key.pem").unwrap();
         let pay = WxPay::new(
             "1559838011",
@@ -508,7 +516,7 @@ mod test {
         // debug!("res:{:#?}", res);
 
         // rand str
-        
+
         let res = pay.transactions_out_trade_no(&out_trade_no).await;
         debug!("res:{:#?}", res);
     }
